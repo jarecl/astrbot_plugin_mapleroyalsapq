@@ -820,7 +820,7 @@ class APQPlugin(Star):
 
         return event.plain_result("已重置APQ组队数据。")
 
-    @filter.command("APQ")
+    @filter.command("APQ命令使用帮助")
     async def help_apq(self, event: AstrMessageEvent):
         """显示APQ插件的帮助信息
         """
