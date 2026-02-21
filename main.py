@@ -396,7 +396,7 @@ class APQPlugin(Star):
 
         return (char_id, gender_raw, job)
 
-    @filter.command("/创建APQ")
+    @filter.command("创建APQ")
     async def create_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
         """创建新的 APQ 组队会话并自动加入
         
@@ -458,7 +458,7 @@ class APQPlugin(Star):
         gender_text = '新娘' if gender == 'br' else '新郎'
         return event.plain_result(f"APQ组队已创建！你已加入：角色 {char_id}，{gender_text} {job}\n等待其他人加入...")
 
-    @filter.command("/加入APQ")
+    @filter.command("加入APQ")
     async def join_apq(self, event: AstrMessageEvent):
         """
         加入 APQ 组队
@@ -529,7 +529,7 @@ class APQPlugin(Star):
         gender_text = '新娘' if gender == 'br' else '新郎'
         return event.plain_result(f"已加入APQ！角色：{char_id}，{gender_text} {job}\n等待分配队伍...")
 
-    @filter.command("/查询APQ")
+    @filter.command("查询APQ")
     async def query_apq(self, event: AstrMessageEvent):
         """查询当前 APQ 组队状态
         
@@ -581,7 +581,7 @@ class APQPlugin(Star):
         # 返回格式化结果
         return event.plain_result("\n".join(lines))
 
-    @filter.command("/我的APQ")
+    @filter.command("我的APQ")
     async def my_apq(self, event: AstrMessageEvent):
         """查询自己的 APQ 报名状态
 
@@ -616,7 +616,7 @@ class APQPlugin(Star):
         # 未找到报名记录
         return event.plain_result("你还没有加入APQ组队。\n使用 /APQ加入 <角色ID> <br/gr/新郎/新娘> <职业> 来加入组队")
 
-    @filter.command("/APQ完成")
+    @filter.command("APQ完成")
     async def finish_apq(self, event: AstrMessageEvent):
         """完成集结，显示最终队伍分配，并清空database.json的数据
         
@@ -666,7 +666,7 @@ class APQPlugin(Star):
         # 返回完成消息
         return event.plain_result("\n".join(lines) + "\n\nAPQ活动已结束，数据已清空，准备下一场活动！")
 
-    @filter.command("/取消APQ")
+    @filter.command("取消APQ")
     async def cancel_apq(self, event: AstrMessageEvent):
         """创建者取消自己的 APQ 活动，直接清空database.json的数据
         
@@ -693,7 +693,7 @@ class APQPlugin(Star):
 
         return event.plain_result("APQ活动已取消，数据已清空。")
 
-    @filter.command("/更换APQ角色")
+    @filter.command("更换APQ角色")
     async def replace_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
         """更换角色信息
         
@@ -762,7 +762,7 @@ class APQPlugin(Star):
         gender_text = '新娘' if gender == 'br' else '新郎'
         return event.plain_result(f"已更新角色信息：角色 {char_id}，{gender_text} {job}")
 
-    @filter.command("/删除APQ")
+    @filter.command("删除APQ")
     async def delete_apq(self, event: AstrMessageEvent, char_id: str = ""):
         """从APQ中删除指定角色（管理员）
         
@@ -800,7 +800,7 @@ class APQPlugin(Star):
 
         return event.plain_result(f"已将角色 {char_id}({player_name}) 从APQ中移除。")
 
-    @filter.command("/重置APQ")
+    @filter.command("重置APQ")
     async def reset_apq(self, event: AstrMessageEvent):
         """重置 APQ 组队数据（管理员）
         
@@ -820,7 +820,7 @@ class APQPlugin(Star):
 
         return event.plain_result("已重置APQ组队数据。")
 
-    @filter.command("/APQ")
+    @filter.command("APQ")
     async def help_apq(self, event: AstrMessageEvent):
         """显示APQ插件的帮助信息
         """

@@ -1,6 +1,6 @@
 name: astrbot_plugin_mapleroyalsapq
 display_name: MapleRoyals APQ组队
-desc: 专用与mapleroyals这款游戏的APQ活动队员召集器
+desc: 专用于mapleroyals这款游戏的APQ活动队员召集器
 version: v1.0.0
 author: jarecl
 repo: https://github.com/jarecl/astrbot_plugin_mapleroyalsapq
