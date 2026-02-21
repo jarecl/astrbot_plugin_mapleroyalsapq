@@ -11,7 +11,7 @@ MapleRoyals APQ 组队插件
 - 管理员权限控制
 - 数据持久化存储
 
-作者：丁真
+作者：jarecl
 版本：1.0.0
 """
 
@@ -30,10 +30,10 @@ from astrbot.api.star import Context, Star, StarTools, register  # 插件核心�
 
 @register(
     "astrbot_plugin_mapleroyalsapq",  # 插件唯一标识符
-    "丁真",                           # 作者名
-    "MapleRoyals APQ组队管理插件",      # 插件名称
-    "1.0.0",                         # 版本号
-    ""                               # 插件描述（可选）
+    "jarecl",                         # 作者名
+    "专用与mapleroyals这款游戏的APQ活动队员召集器",  # 插件描述
+    "1.0.0",                          # 版本号
+    "https://github.com/jarecl/astrbot_plugin_mapleroyalsapq"  # 仓库地址
 )
 class APQPlugin(Star):
     """APQ 组队插件主类
