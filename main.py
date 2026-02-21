@@ -581,6 +581,41 @@ class APQPlugin(Star):
         # 返回格式化结果
         return event.plain_result("\n".join(lines))
 
+    @filter.command("APQ我的")
+    async def my_apq(self, event: AstrMessageEvent):
+        """查询自己的 APQ 报名状态
+
+        让用户可以查看自己当前的报名信息，确认是否已成功加入
+        这有助于解决用户"我刚报名怎么没了"的困惑
+
+        Args:
+            event: 消息事件对象
+        """
+        # 获取用户QQ号
+        uid = self._get_sender_id(event)
+
+        # 在自由报名池中查找
+        free = self.state.get("free", [])
+        for p in free:
+            if p.get("user_id") == uid:
+                char_id = p.get("character_id", "?")
+                gender = "新娘" if p.get("gender") == "br" else "新郎"
+                job = p.get("job", "?")
+                return event.plain_result(f"你在自由报名池中\n角色ID：{char_id}\n性别：{gender}\n职业：{job}")
+
+        # 在已分配队伍中查找
+        teams = self.state.get("teams", {})
+        for team_name, members in teams.items():
+            for p in members:
+                if p.get("user_id") == uid:
+                    char_id = p.get("character_id", "?")
+                    gender = "新娘" if p.get("gender") == "br" else "新郎"
+                    job = p.get("job", "?")
+                    return event.plain_result(f"你在【{team_name}】中\n角色ID：{char_id}\n性别：{gender}\n职业：{job}\n队伍人数：{len(members)}/{self.TEAM_SIZE}")
+
+        # 未找到报名记录
+        return event.plain_result("你还没有加入APQ组队。\n使用 /APQ加入 <角色ID> <br/gr/新郎/新娘> <职业> 来加入组队")
+
     @filter.command("APQ完成")
     async def finish_apq(self, event: AstrMessageEvent):
         """完成集结，显示最终队伍分配，并清空database.json的数据

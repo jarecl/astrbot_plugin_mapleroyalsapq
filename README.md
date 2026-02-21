@@ -154,7 +154,20 @@ astrbot_plugin_mapleroyalsapq/
 
 - 队伍的参与者信息（角色ID、性别、职业，QQ号）
 
-### 7. 取消APQ
+### 7. 我的APQ
+
+```
+/APQ我的
+```
+
+**说明**: 查询自己的 APQ 报名状态
+
+**显示内容**:
+
+- 当前所在队伍或自由报名池
+- 自己的角色ID、性别、职业信息
+
+### 8. 取消APQ
 
 ```
 /APQ取消
@@ -162,7 +175,7 @@ astrbot_plugin_mapleroyalsapq/
 
 **说明**: 创建者取消自己的 APQ 活动，直接清空database.json的数据
 
-### 8. 重置APQ
+### 9. 重置APQ
 
 ```
 /APQ重置
