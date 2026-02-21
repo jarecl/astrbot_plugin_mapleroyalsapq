@@ -820,6 +820,17 @@ class APQPlugin(Star):
 
         return event.plain_result("已重置APQ组队数据。")
 
+    @filter.command("/APQ")
+    async def help_apq(self, event: AstrMessageEvent):
+        """显示APQ插件的帮助信息
+        """
+        return event.plain_result("APQ插件帮助信息：\n"
+                                  "/创建APQ <角色ID> <br/gr/新郎/新娘> <职业>\n"
+                                  "/加入APQ <角色ID> <br/gr/新郎/新娘> <职业>\n"
+                                  "/查询APQ\n"
+                                  "/我的APQ 查询我报名的APQ\n"
+                                  "/取消APQ 取消自己创建的APQ活动\n"
+                                  "/帮助APQ")
 
 class Main(APQPlugin):
     """兼容旧版加载器
