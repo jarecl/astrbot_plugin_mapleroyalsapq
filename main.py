@@ -480,7 +480,7 @@ class APQPlugin(Star):
             # 计算统计信息
             br_count = sum(1 for p in members if p.get("gender") == "br")
             gr_count = sum(1 for p in members if p.get("gender") == "gr")
-            lines.append(f"\n【统计】总人数：{len(members)}，新娘：{br_count}，新郎：{gr_count}")
+            lines.append(f"\n【统计】总人数：{len(members)}，br：{br_count}，gr：{gr_count}")
 
             # 重置database.json的数据
             self.state = {"status": "idle", "captain": {}, "members": []}
@@ -535,7 +535,7 @@ class APQPlugin(Star):
         gr_count = sum(1 for p in members if p.get("gender") == "gr")
 
         # 添加统计信息
-        lines.append(f"\n【统计】总人数：{len(members)}，新娘：{br_count}，新郎：{gr_count}")
+        lines.append(f"\n【统计】总人数：{len(members)}，br：{br_count}，gr：{gr_count}")
 
         # 返回格式化结果
         return event.plain_result("\n".join(lines))
