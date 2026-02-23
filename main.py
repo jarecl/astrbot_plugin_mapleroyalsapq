@@ -234,6 +234,26 @@ class APQPlugin(Star):
 
         return None  # 未找到
 
+    def _is_character_id_taken(self, char_id: str, exclude_user_id: str = None) -> bool:
+        """检查角色ID是否已被使用
+
+        Args:
+            char_id: 角色ID
+            exclude_user_id: 要排除的用户ID（用于更换角色时不和自己比较）
+        Returns:
+            bool: True表示角色ID已被使用
+        """
+        char_id = char_id.strip()  # 清理空格
+
+        # 在成员列表中查找
+        for p in self.state.get("members", []):
+            # 如果角色ID相同，且不是当前用户（用于更换角色场景）
+            if p.get("character_id") == char_id:
+                if exclude_user_id is None or p.get("qq_number") != exclude_user_id:
+                    return True
+
+        return False
+
     def _format_player_info(self, player: Dict[str, Any]) -> str:
         """格式化玩家信息显示
 
@@ -251,11 +271,8 @@ class APQPlugin(Star):
         job = player.get("job", "?")
         qq = player.get("qq_number", "?")
 
-        # 性别代码转换为中文显示
-        gender_text = "新娘" if gender == "br" else "新郎" if gender == "gr" else gender
-
-        # 返回格式化字符串
-        return f"[{char_id}] {gender_text} {job} (QQ: {qq})"
+        # 返回格式化字符串（直接使用 br/gr）
+        return f"[{char_id}] {gender} {job} (QQ: {qq})"
 
     def _parse_gender(self, gender: str) -> Optional[str]:
         """解析性别参数，支持中文和英文
@@ -366,6 +383,9 @@ class APQPlugin(Star):
         if self.state.get("status") == "recruiting":
             members = self.state.get("members", [])
             if members:  # 如果有活动数据
+                # 检查角色ID是否已被使用
+                if self._is_character_id_taken(char_id):
+                    return event.plain_result(f"有同名角色 [{char_id}] 已经参加，请使用其他角色名")
                 return event.plain_result("目前已有APQ在召集，请等满员发车后再创建新的")
 
         # 设置活动状态为召集中
@@ -388,9 +408,8 @@ class APQPlugin(Star):
         self.state["members"] = [player_info.copy()]  # 使用副本避免共享引用
         self._save_database()  # 保存到数据库
 
-        # 返回成功消息
-        gender_text = '新娘' if gender == 'br' else '新郎'
-        return event.plain_result(f"APQ组队已创建！你已成为队长并加入：角色 {char_id}，{gender_text} {job}\n等待其他人加入...")
+        # 返回成功消息（使用 br/gr）
+        return event.plain_result(f"APQ组队已创建！你已成为队长并加入：角色 {char_id}，{gender} {job}\n等待其他人加入...")
 
     @filter.command("加入APQ")
     async def join_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
@@ -429,6 +448,10 @@ class APQPlugin(Star):
         uid = self._get_sender_id(event)    # QQ号
         name = self._get_sender_name(event) # 昵称
 
+        # 检查角色ID是否已被使用
+        if self._is_character_id_taken(char_id, exclude_user_id=uid):
+            return event.plain_result(f"有同名角色 [{char_id}] 已经参加，请使用其他角色名")
+
         # 创建玩家信息对象
         player_info = {
             "qq_number": uid,        # 用户QQ号
@@ -452,7 +475,6 @@ class APQPlugin(Star):
             # 构建最终名单消息
             lines = ["=== APQ 集结完成 ===\n"]
             for idx, p in enumerate(members, 1):
-                gender_text = "新娘" if p.get("gender") == "br" else "新郎"
                 lines.append(f"{idx}. {self._format_player_info(p)}")
 
             # 计算统计信息
@@ -467,11 +489,10 @@ class APQPlugin(Star):
             # 返回完成消息
             return event.plain_result("\n".join(lines) + "\n\nAPQ活动已结束，数据已清空，准备下一场活动！")
 
-        # 返回成功消息和当前所有已参与的成员信息
-        gender_text = '新娘' if gender == 'br' else '新郎'
+        # 返回成功消息和当前所有已参与的成员信息（使用 br/gr）
 
         # 构建当前成员列表
-        lines = [f"已加入APQ！角色：{char_id}，{gender_text} {job}\n\n当前成员 ({len(members)}/{self.TEAM_SIZE})："]
+        lines = [f"已加入APQ！角色：{char_id}，{gender} {job}\n\n当前成员 ({len(members)}/{self.TEAM_SIZE})："]
         for idx, p in enumerate(members, 1):
             lines.append(f"{idx}. {self._format_player_info(p)}")
 
@@ -537,7 +558,7 @@ class APQPlugin(Star):
         for idx, p in enumerate(members, 1):
             if p.get("qq_number") == uid:
                 char_id = p.get("character_id", "?")
-                gender = "新娘" if p.get("gender") == "br" else "新郎"
+                gender = p.get("gender", "?")
                 job = p.get("job", "?")
                 is_captain = p.get("qq_number") == self.state.get("captain", {}).get("qq_number")
                 role = "队长" if is_captain else "队员"
@@ -665,9 +686,8 @@ class APQPlugin(Star):
 
         self._save_database()  # 保存更新后的数据
 
-        # 返回成功消息
-        gender_text = '新娘' if gender == 'br' else '新郎'
-        return event.plain_result(f"已更新角色信息：角色 {char_id}，{gender_text} {job}")
+        # 返回成功消息（使用 br/gr）
+        return event.plain_result(f"已更新角色信息：角色 {char_id}，{gender} {job}")
 
     @filter.command("删除APQ角色")
     async def delete_apq_char(self, event: AstrMessageEvent, identifier: str = ""):
