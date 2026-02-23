@@ -294,20 +294,25 @@ class APQPlugin(Star):
         格式要求: /加入APQ <角色ID> <br/gr/新郎/新娘> <职业>
         示例: /加入APQ dingzhen br 刀飞
         """
-        # 移除命令前缀，支持大小写
-        content = content.replace("/加入APQ", "").replace("/加入apq", "").replace("/加入apq", "").strip()
+        # 注意：AstrBot框架的@filter.command装饰器已经移除了命令前缀
+        # 这里只需要清理空格即可
+        content = content.strip()
 
         # 使用正则表达式严格匹配格式
         # 模式说明：
         # ^\s*        - 开头可能有空格
-        # (\S+?)      - 第一组：非空白字符（角色ID），非贪婪匹配
+        # (\S+)       - 第一组：非空白字符（角色ID），至少一个字符
         # \s+         - 必须有空格分隔
         # (br|gr|新郎|新娘) - 第二组：性别参数
         # \s+         - 必须有空格分隔
-        # (\S.*?)     - 第三组：职业（可包含空格）
+        # (\S+(?:\s+\S+)*) - 第三组：职业（可包含空格，由多个非空白字符组成）
         # \s*$        - 结尾可能有空格
-        pattern = r'^\s*(\S+?)\s+(br|gr|新郎|新娘)\s+(\S.*?)\s*$'
+        pattern = r'^\s*(\S+)\s+(br|gr|新郎|新娘)\s+(\S+(?:\s+\S+)*)\s*$'
         match = re.match(pattern, content, re.IGNORECASE)  # 忽略大小写匹配
+
+        # 添加调试日志
+        logger.info(f"apq: 解析加入命令 - 原始内容: {repr(content)}")
+        logger.info(f"apq: 正则匹配结果: {match}")
 
         # 格式不匹配返回None
         if not match:
@@ -317,6 +322,8 @@ class APQPlugin(Star):
         char_id = match.group(1).strip()      # 角色ID
         gender_raw = match.group(2).strip()   # 性别原始输入
         job = match.group(3).strip()          # 职业
+
+        logger.info(f"apq: 解析结果 - char_id={repr(char_id)}, gender={repr(gender_raw)}, job={repr(job)}")
 
         # 验证职业不为空
         if not job:
@@ -375,10 +382,10 @@ class APQPlugin(Star):
         }
 
         # 设置队长信息
-        self.state["captain"] = player_info
+        self.state["captain"] = player_info.copy()  # 使用副本避免共享引用
 
         # 将创建者加入成员列表（作为第一个成员）
-        self.state["members"] = [player_info]
+        self.state["members"] = [player_info.copy()]  # 使用副本避免共享引用
         self._save_database()  # 保存到数据库
 
         # 返回成功消息
@@ -386,7 +393,7 @@ class APQPlugin(Star):
         return event.plain_result(f"APQ组队已创建！你已成为队长并加入：角色 {char_id}，{gender_text} {job}\n等待其他人加入...")
 
     @filter.command("加入APQ")
-    async def join_apq(self, event: AstrMessageEvent):
+    async def join_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
         """
         加入 APQ 组队
 
@@ -396,31 +403,18 @@ class APQPlugin(Star):
 
         Args:
             event: 消息事件对象
+            char_id: 角色ID
+            gender: 性别参数
+            job: 职业
         """
-        # 获取完整消息内容进行严格解析
-        # 需要从原始消息对象中提取文本内容
-        message_obj = getattr(event, "message_obj", None)
-        if not message_obj:
-            return event.plain_result("获取消息失败")
+        # 清理输入参数
+        char_id = char_id.strip()
+        gender_raw = gender.strip()
+        job = job.strip()
 
-        message_text = getattr(message_obj, "message", [])
-        if not isinstance(message_text, list):
-            return event.plain_result("消息格式错误")
-
-        # 提取纯文本内容
-        # 处理可能的富文本消息格式
-        full_text = ""
-        for segment in message_text:
-            if isinstance(segment, dict) and segment.get("type") == "text":
-                full_text += segment.get("data", {}).get("text", "")
-
-        # 验证并解析命令格式
-        parsed = self._validate_and_parse_join_command(full_text)
-        if not parsed:
-            return event.plain_result("格式错误！\n用法：/加入APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/加入APQ 12345 br 刀飞")
-
-        # 解包解析结果
-        char_id, gender_raw, job = parsed
+        # 验证必需参数
+        if not char_id or not gender_raw or not job:
+            return event.plain_result("用法：/加入APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/加入APQ 12345 br 刀飞")
 
         # 解析性别参数为标准格式
         gender = self._parse_gender(gender_raw)
@@ -583,6 +577,41 @@ class APQPlugin(Star):
 
         return event.plain_result("APQ活动已取消，数据已清空。")
 
+    @filter.command("退出APQ")
+    async def quit_apq(self, event: AstrMessageEvent):
+        """退出 APQ 组队
+
+        允许参与者退出当前进行中的APQ活动
+        删除该QQ号对应的角色数据
+
+        Args:
+            event: 消息事件对象
+        """
+        # 获取用户ID
+        uid = self._get_sender_id(event)
+
+        # 获取队长信息
+        captain = self.state.get("captain", {})
+
+        # 检查是否有APQ进行中
+        if self.state.get("status") == "idle" or not self.state.get("members"):
+            return event.plain_result("当前没有APQ组队。")
+
+        # 验证是否是队长
+        if captain.get("qq_number") == uid:
+            return event.plain_result("你是APQ创建者（队长），如需取消活动请使用 /取消APQ")
+
+        # 检查用户是否在成员列表中
+        is_member = self._find_user_in_members(uid)
+        if not is_member:
+            return event.plain_result("你还没有加入APQ组队。")
+
+        # 移除用户
+        self._remove_user_from_all(uid)
+        self._save_database()  # 保存更新后的状态
+
+        return event.plain_result("已退出APQ组队。")
+
     @filter.command("更换APQ角色")
     async def replace_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
         """更换角色信息
@@ -612,19 +641,23 @@ class APQPlugin(Star):
         # 获取用户ID
         uid = self._get_sender_id(event)
 
-        # 检查是否有管理员权限
-        is_admin = self._has_admin_rights(event)
-
         # 在成员列表中查找用户记录
         found = False  # 标记是否找到用户记录
         for p in self.state.get("members", []):
-            # 普通用户只能修改自己的信息，管理员可以修改任何人的信息
-            if p.get("qq_number") == uid or is_admin:
+            # 普通用户只能修改自己的信息
+            if p.get("qq_number") == uid:
                 p["character_id"] = char_id  # 更新角色ID
                 p["gender"] = gender         # 更新性别
                 p["job"] = job              # 更新职业
                 found = True
                 break
+
+        # 如果未找到用户记录，检查队长是否是当前用户
+        if not found and self.state.get("captain", {}).get("qq_number") == uid:
+            self.state["captain"]["character_id"] = char_id
+            self.state["captain"]["gender"] = gender
+            self.state["captain"]["job"] = job
+            found = True
 
         # 如果未找到用户记录
         if not found:
@@ -636,37 +669,55 @@ class APQPlugin(Star):
         gender_text = '新娘' if gender == 'br' else '新郎'
         return event.plain_result(f"已更新角色信息：角色 {char_id}，{gender_text} {job}")
 
-    @filter.command("删除APQ")
-    async def delete_apq(self, event: AstrMessageEvent, char_id: str = ""):
+    @filter.command("删除APQ角色")
+    async def delete_apq_char(self, event: AstrMessageEvent, identifier: str = ""):
         """从APQ中删除指定角色（管理员）
 
         管理员专用命令，用于移除违规或不当报名的玩家
+        支持通过QQ号或角色ID来查找并删除角色
+        如果删除的角色是队长，则等同于重置APQ
 
         Args:
             event: 消息事件对象
-            char_id: 要删除的角色ID
+            identifier: 要删除的角色ID或QQ号
         """
         # 检查管理员权限
         if not self._has_admin_rights(event):
             return event.plain_result("仅管理员可删除角色。")
 
         # 清理输入参数
-        char_id = char_id.strip()
+        identifier = identifier.strip()
 
         # 验证参数
-        if not char_id:
-            return event.plain_result("用法：/删除APQ <角色ID>\n示例：/删除APQ dingzhen")
+        if not identifier:
+            return event.plain_result("用法：/删除APQ角色 <角色ID或QQ号>\n示例：/删除APQ角色 dingzhen 或 /删除APQ角色 123456789")
 
-        # 通过角色ID查找玩家
-        player = self._find_player_by_character_id(char_id)
+        # 先尝试通过角色ID查找玩家
+        player = self._find_player_by_character_id(identifier)
+
+        # 如果通过角色ID找不到，尝试通过QQ号查找
+        if player is None:
+            for p in self.state.get("members", []):
+                if p.get("qq_number") == identifier:
+                    player = p
+                    break
 
         # 如果未找到玩家
         if player is None:
-            return event.plain_result(f"未找到角色 {char_id} 的APQ记录。")
+            return event.plain_result(f"未找到 {identifier} 对应的APQ记录（请检查角色ID或QQ号）。")
 
-        # 获取玩家的QQ号和昵称
+        # 获取玩家的QQ号、角色ID和昵称
         user_id = player.get("qq_number")
+        char_id = player.get("character_id", identifier)
         player_name = player.get("nickname", user_id)
+
+        # 检查该玩家是否是队长
+        captain = self.state.get("captain", {})
+        if captain.get("qq_number") == user_id:
+            # 删除队长等同于重置APQ
+            self.state = {"status": "idle", "captain": {}, "members": []}
+            self._save_database()
+            return event.plain_result(f"已将队长 {char_id}({player_name}) 删除，APQ已重置。")
 
         # 从成员列表中移除玩家
         self._remove_user_from_all(user_id)
@@ -698,8 +749,10 @@ class APQPlugin(Star):
     async def help_apq(self, event: AstrMessageEvent):
         """显示APQ插件的帮助信息
 
-        根据README.md中的命令列表显示帮助信息
+        根据用户权限显示不同的帮助内容
+        管理员可以看到所有命令，普通用户只能看到用户命令
         """
+        # 基础帮助文本（所有用户可见）
         help_text = """=== APQ 命令使用帮助 ===
 
 【用户命令】
@@ -718,26 +771,36 @@ class APQPlugin(Star):
 /更换APQ角色 <角色ID> <br/gr/新郎/新娘> <职业>
   更新自己的角色信息
 
+/退出APQ
+  退出当前APQ组队
+
 /取消APQ
   取消当前APQ活动（仅限创建者）
-
-【管理员命令】
-/删除APQ <角色ID>
-  从APQ中移除指定角色
-
-/重置APQ
-  完全重置APQ数据
 
 【参数说明】
 - 角色ID: 游戏内角色唯一标识
 - br/新娘: 表示新娘
 - gr/新郎: 表示新郎
-- 职业: 角色职业名称
+- 职业: 角色职业名称（没伤害就填小号）
 
 【规则】
 - 每队最多 6 人参与
 - 同时只能有一个APQ活动处于召集中
 - 第6个人加入后自动完成集结并重置数据"""
+
+        # 如果是管理员，追加管理员命令部分
+        if self._has_admin_rights(event):
+            admin_text = """
+
+【管理员命令】
+/删除APQ角色 <角色ID或QQ号>
+  从APQ中移除指定角色（支持角色ID或QQ号）
+  如果删除的是队长，则等同于重置APQ
+
+/重置APQ
+  完全重置APQ数据"""
+            help_text += admin_text
+
         return event.plain_result(help_text)
 
 class Main(APQPlugin):
