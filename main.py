@@ -66,6 +66,7 @@ class APQPlugin(Star):
             "status": "idle",      # 活动状态：idle(空闲)/recruiting(召集中)
             "captain": {},         # 队长信息
             "members": [],         # 参与者信息列表（包含队长，最多6人）
+            "tracked_groups": [],  # 记录使用APQ命令的群聊ID列表（去重）
         }
         self._load_database()  # 从文件加载历史数据
 
@@ -119,13 +120,80 @@ class APQPlugin(Star):
 
     def _get_sender_name(self, event: AstrMessageEvent) -> str:
         """获取消息发送者的显示名称
-        
+
         Args:
             event: 消息事件对象
         Returns:
             str: 发送者的昵称或群名片
         """
         return str(event.get_sender_name())
+
+    def _get_group_id(self, event: AstrMessageEvent) -> Optional[str]:
+        """获取消息来源的群聊ID
+
+        Args:
+            event: 消息事件对象
+        Returns:
+            Optional[str]: 群聊的unified_msg_origin，如果不是群聊则返回None
+        """
+        # 通过检查 unified_msg_origin 是否包含群聊标识来判断
+        unified_msg_origin = event.unified_msg_origin
+
+        # 检查是否是群聊消息
+        # unified_msg_origin 格式通常为: platform:GroupMessage:group_id
+        if "GroupMessage" not in unified_msg_origin:
+            # 如果没有GroupMessage标识，尝试从message_obj获取
+            msg = getattr(event, "message_obj", None)
+            if msg and hasattr(msg, "group_id"):
+                group_id = getattr(msg, "group_id", None)
+                if group_id:
+                    # 构建完整的unified_msg_origin
+                    if ":" in unified_msg_origin:
+                        platform = unified_msg_origin.split(":")[0]
+                        return f"{platform}:GroupMessage:{group_id}"
+            return None
+
+        return unified_msg_origin
+
+    def _track_group_id(self, event: AstrMessageEvent) -> None:
+        """记录使用APQ命令的群聊ID（去重）
+
+        Args:
+            event: 消息事件对象
+        """
+        group_id = self._get_group_id(event)
+        if not group_id:
+            return  # 不是群聊，不记录
+
+        # 获取已记录的群聊列表，去重后保存
+        tracked_groups = self.state.get("tracked_groups", [])
+        if group_id not in tracked_groups:
+            tracked_groups.append(group_id)
+            self.state["tracked_groups"] = tracked_groups
+            self._save_database()
+            logger.info(f"apq: 新增记录群聊ID: {group_id}")
+
+    async def _broadcast_to_all_groups(self, message: str) -> None:
+        """广播消息到所有记录的群聊
+
+        Args:
+            message: 要发送的消息内容
+        """
+        tracked_groups = self.state.get("tracked_groups", [])
+        if not tracked_groups:
+            logger.warning("apq: 没有记录的群聊ID，无法广播")
+            return
+
+        success_count = 0
+        for group_id in tracked_groups:
+            try:
+                await self.context.send_message(group_id, message)
+                success_count += 1
+                logger.info(f"apq: 广播消息到群聊 {group_id} 成功")
+            except Exception as e:
+                logger.error(f"apq: 广播消息到群聊 {group_id} 失败: {e}")
+
+        logger.info(f"apq: 广播完成，成功 {success_count}/{len(tracked_groups)} 个群聊")
 
     def _is_super_admin(self, user_id: str) -> bool:
         """检查用户是否为超级管理员
@@ -360,6 +428,9 @@ class APQPlugin(Star):
             gender: 性别参数
             job: 职业
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 清理输入参数
         char_id = char_id.strip()
         gender_raw = gender.strip()
@@ -426,6 +497,9 @@ class APQPlugin(Star):
             gender: 性别参数
             job: 职业
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 清理输入参数
         char_id = char_id.strip()
         gender_raw = gender.strip()
@@ -482,12 +556,19 @@ class APQPlugin(Star):
             gr_count = sum(1 for p in members if p.get("gender") == "gr")
             lines.append(f"\n【统计】总人数：{len(members)}，br：{br_count}，gr：{gr_count}")
 
-            # 重置database.json的数据
-            self.state = {"status": "idle", "captain": {}, "members": []}
+            final_message = "\n".join(lines) + "\n\nAPQ活动已结束，数据已清空，准备下一场活动！"
+
+            # 广播消息到所有记录的群聊
+            tracked_groups = self.state.get("tracked_groups", [])
+            if tracked_groups:
+                await self._broadcast_to_all_groups(final_message)
+
+            # 重置database.json的数据（包括清空tracked_groups）
+            self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
             self._save_database()
 
             # 返回完成消息
-            return event.plain_result("\n".join(lines) + "\n\nAPQ活动已结束，数据已清空，准备下一场活动！")
+            return event.plain_result(final_message)
 
         # 返回成功消息和当前所有已参与的成员信息（使用 br/gr）
 
@@ -508,6 +589,9 @@ class APQPlugin(Star):
         Args:
             event: 消息事件对象
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 获取当前状态数据
         captain = self.state.get("captain", {})
         members = self.state.get("members", [])
@@ -550,6 +634,9 @@ class APQPlugin(Star):
         Args:
             event: 消息事件对象
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 获取用户QQ号
         uid = self._get_sender_id(event)
 
@@ -577,6 +664,9 @@ class APQPlugin(Star):
         Args:
             event: 消息事件对象
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 获取用户ID
         uid = self._get_sender_id(event)
 
@@ -592,8 +682,8 @@ class APQPlugin(Star):
             return event.plain_result("只有APQ创建者才能取消活动。")
 
         # 清空database.json的数据
-        # 直接重置为初始状态
-        self.state = {"status": "idle", "captain": {}, "members": []}
+        # 直接重置为初始状态（包括清空tracked_groups）
+        self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
         self._save_database()  # 保存清空后的状态
 
         return event.plain_result("APQ活动已取消，数据已清空。")
@@ -608,6 +698,9 @@ class APQPlugin(Star):
         Args:
             event: 消息事件对象
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 获取用户ID
         uid = self._get_sender_id(event)
 
@@ -645,6 +738,9 @@ class APQPlugin(Star):
             gender: 新的性别
             job: 新的职业
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 清理输入参数
         char_id = char_id.strip()
         gender_raw = gender.strip()
@@ -701,6 +797,9 @@ class APQPlugin(Star):
             event: 消息事件对象
             identifier: 要删除的角色ID或QQ号
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 检查管理员权限
         if not self._has_admin_rights(event):
             return event.plain_result("仅管理员可删除角色。")
@@ -735,7 +834,7 @@ class APQPlugin(Star):
         captain = self.state.get("captain", {})
         if captain.get("qq_number") == user_id:
             # 删除队长等同于重置APQ
-            self.state = {"status": "idle", "captain": {}, "members": []}
+            self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
             self._save_database()
             return event.plain_result(f"已将队长 {char_id}({player_name}) 删除，APQ已重置。")
 
@@ -755,12 +854,15 @@ class APQPlugin(Star):
         Args:
             event: 消息事件对象
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 检查管理员权限
         if not self._has_admin_rights(event):
             return event.plain_result("仅管理员可重置APQ。")
 
-        # 完全重置状态数据
-        self.state = {"status": "idle", "captain": {}, "members": []}
+        # 完全重置状态数据（包括清空tracked_groups）
+        self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
         self._save_database()  # 保存重置后的状态
 
         return event.plain_result("已重置APQ组队数据。")
@@ -772,6 +874,9 @@ class APQPlugin(Star):
         根据用户权限显示不同的帮助内容
         管理员可以看到所有命令，普通用户只能看到用户命令
         """
+        # 记录群聊ID
+        self._track_group_id(event)
+
         # 基础帮助文本（所有用户可见）
         help_text = """=== APQ 命令使用帮助 ===
 
