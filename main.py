@@ -438,12 +438,12 @@ class APQPlugin(Star):
 
         # 验证必需参数
         if not char_id or not gender_raw or not job:
-            return event.plain_result("用法：/创建APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/创建APQ dingzhen gr 拳手")
+            return event.plain_result("\n用法：/创建APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/创建APQ dingzhen gr 拳手")
 
         # 解析性别参数为标准格式
         gender = self._parse_gender(gender_raw)
         if not gender:
-            return event.plain_result("性别参数错误，必须是 br/新娘 或 gr/新郎")
+            return event.plain_result("\n性别参数错误，必须是 br/新娘 或 gr/新郎")
 
         # 获取用户基本信息
         uid = self._get_sender_id(event)    # QQ号
@@ -456,8 +456,8 @@ class APQPlugin(Star):
             if members:  # 如果有活动数据
                 # 检查角色ID是否已被使用
                 if self._is_character_id_taken(char_id):
-                    return event.plain_result(f"有同名角色 [{char_id}] 已经参加，请使用其他角色名")
-                return event.plain_result("目前已有APQ在召集，请等满员发车后再创建新的")
+                    return event.plain_result(f"\n有同名角色 [{char_id}] 已经参加，请使用其他角色名")
+                return event.plain_result("\n目前已有APQ在召集，请等满员发车后再创建新的")
 
         # 设置活动状态为召集中
         self.state["status"] = "recruiting"
@@ -480,7 +480,7 @@ class APQPlugin(Star):
         self._save_database()  # 保存到数据库
 
         # 返回成功消息（使用 br/gr）
-        return event.plain_result(f"APQ组队已创建！你已成为队长并加入：角色 {char_id}，{gender} {job}\n等待其他人加入...")
+        return event.plain_result(f"\nAPQ组队已创建！你已成为队长并加入：角色 {char_id}，{gender} {job}\n等待其他人加入...")
 
     @filter.command("加入APQ")
     async def join_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
@@ -507,16 +507,16 @@ class APQPlugin(Star):
 
         # 验证必需参数
         if not char_id or not gender_raw or not job:
-            return event.plain_result("用法：/加入APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/加入APQ 12345 br 刀飞")
+            return event.plain_result("\n用法：/加入APQ <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/加入APQ 12345 br 刀飞")
 
         # 解析性别参数为标准格式
         gender = self._parse_gender(gender_raw)
         if not gender:
-            return event.plain_result("性别参数错误，必须是 br/新娘 或 gr/新郎")
+            return event.plain_result("\n性别参数错误，必须是 br/新娘 或 gr/新郎")
 
         # 检查是否有APQ进行中
         if self.state.get("status") == "idle":
-            return event.plain_result("目前没有进行中的APQ活动，请先创建APQ")
+            return event.plain_result("\n目前没有进行中的APQ活动，请先创建APQ")
 
         # 获取用户基本信息
         uid = self._get_sender_id(event)    # QQ号
@@ -524,7 +524,7 @@ class APQPlugin(Star):
 
         # 检查角色ID是否已被使用
         if self._is_character_id_taken(char_id, exclude_user_id=uid):
-            return event.plain_result(f"有同名角色 [{char_id}] 已经参加，请使用其他角色名")
+            return event.plain_result(f"\n有同名角色 [{char_id}] 已经参加，请使用其他角色名")
 
         # 创建玩家信息对象
         player_info = {
@@ -568,7 +568,7 @@ class APQPlugin(Star):
             self._save_database()
 
             # 返回完成消息
-            return event.plain_result(final_message)
+            return event.plain_result("\n" + final_message)
 
         # 返回成功消息和当前所有已参与的成员信息（使用 br/gr）
 
@@ -577,7 +577,7 @@ class APQPlugin(Star):
         for idx, p in enumerate(members, 1):
             lines.append(f"{idx}. {self._format_player_info(p)}")
 
-        return event.plain_result("\n".join(lines))
+        return event.plain_result("\n" + "\n".join(lines))
 
     @filter.command("查询APQ")
     async def query_apq(self, event: AstrMessageEvent):
@@ -598,7 +598,7 @@ class APQPlugin(Star):
 
         # 检查是否有活动进行中
         if not captain and not members:
-            return event.plain_result("当前没有APQ组队，使用 /创建APQ 创建新的组队。")
+            return event.plain_result("\n当前没有APQ组队，使用 /创建APQ 创建新的组队。")
 
         # 构建显示内容
         lines = ["=== APQ 组队状态 ==="]
@@ -622,7 +622,7 @@ class APQPlugin(Star):
         lines.append(f"\n【统计】总人数：{len(members)}，br：{br_count}，gr：{gr_count}")
 
         # 返回格式化结果
-        return event.plain_result("\n".join(lines))
+        return event.plain_result("\n" + "\n".join(lines))
 
     @filter.command("我的APQ")
     async def my_apq(self, event: AstrMessageEvent):
@@ -649,10 +649,10 @@ class APQPlugin(Star):
                 job = p.get("job", "?")
                 is_captain = p.get("qq_number") == self.state.get("captain", {}).get("qq_number")
                 role = "队长" if is_captain else "队员"
-                return event.plain_result(f"你在APQ中（{role}）\n角色ID：{char_id}\n性别：{gender}\n职业：{job}\n当前人数：{len(members)}/{self.TEAM_SIZE}")
+                return event.plain_result(f"\n你在APQ中（{role}）\n角色ID：{char_id}\n性别：{gender}\n职业：{job}\n当前人数：{len(members)}/{self.TEAM_SIZE}")
 
         # 未找到报名记录
-        return event.plain_result("你还没有加入APQ组队。\n使用 /加入APQ <角色ID> <br/gr/新郎/新娘> <职业> 来加入组队")
+        return event.plain_result("\n你还没有加入APQ组队。\n使用 /加入APQ <角色ID> <br/gr/新郎/新娘> <职业> 来加入组队")
 
     @filter.command("取消APQ")
     async def cancel_apq(self, event: AstrMessageEvent):
@@ -675,18 +675,18 @@ class APQPlugin(Star):
 
         # 检查是否有APQ进行中
         if not captain and not self.state.get("members"):
-            return event.plain_result("当前没有APQ组队。")
+            return event.plain_result("\n当前没有APQ组队。")
 
         # 验证是否是队长（创建者）
         if captain.get("qq_number") != uid:
-            return event.plain_result("只有APQ创建者才能取消活动。")
+            return event.plain_result("\n只有APQ创建者才能取消活动。")
 
         # 清空database.json的数据
         # 直接重置为初始状态（包括清空tracked_groups）
         self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
         self._save_database()  # 保存清空后的状态
 
-        return event.plain_result("APQ活动已取消，数据已清空。")
+        return event.plain_result("\nAPQ活动已取消，数据已清空。")
 
     @filter.command("退出APQ")
     async def quit_apq(self, event: AstrMessageEvent):
@@ -709,22 +709,22 @@ class APQPlugin(Star):
 
         # 检查是否有APQ进行中
         if self.state.get("status") == "idle" or not self.state.get("members"):
-            return event.plain_result("当前没有APQ组队。")
+            return event.plain_result("\n当前没有APQ组队。")
 
         # 验证是否是队长
         if captain.get("qq_number") == uid:
-            return event.plain_result("你是APQ创建者（队长），如需取消活动请使用 /取消APQ")
+            return event.plain_result("\n你是APQ创建者（队长），如需取消活动请使用 /取消APQ")
 
         # 检查用户是否在成员列表中
         is_member = self._find_user_in_members(uid)
         if not is_member:
-            return event.plain_result("你还没有加入APQ组队。")
+            return event.plain_result("\n你还没有加入APQ组队。")
 
         # 移除用户
         self._remove_user_from_all(uid)
         self._save_database()  # 保存更新后的状态
 
-        return event.plain_result("已退出APQ组队。")
+        return event.plain_result("\n已退出APQ组队。")
 
     @filter.command("更换APQ角色")
     async def replace_apq(self, event: AstrMessageEvent, char_id: str = "", gender: str = "", job: str = ""):
@@ -748,15 +748,18 @@ class APQPlugin(Star):
 
         # 验证必需参数
         if not char_id or not gender_raw or not job:
-            return event.plain_result("用法：/更换APQ角色 <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/更换APQ角色 dingzhen2 gr 拳手")
+            return event.plain_result("\n用法：/更换APQ角色 <角色ID> <br/gr/新郎/新娘> <职业>\n示例：/更换APQ角色 dingzhen2 gr 拳手")
 
         # 解析性别参数为标准格式
         gender = self._parse_gender(gender_raw)
         if not gender:
-            return event.plain_result("性别参数错误，必须是 br/新娘 或 gr/新郎")
+            return event.plain_result("\n性别参数错误，必须是 br/新娘 或 gr/新郎")
 
         # 获取用户ID
         uid = self._get_sender_id(event)
+
+        # 检查是否是队长
+        is_captain = self.state.get("captain", {}).get("qq_number") == uid
 
         # 在成员列表中查找用户记录
         found = False  # 标记是否找到用户记录
@@ -769,21 +772,20 @@ class APQPlugin(Star):
                 found = True
                 break
 
-        # 如果未找到用户记录，检查队长是否是当前用户
-        if not found and self.state.get("captain", {}).get("qq_number") == uid:
+        # 如果是队长，同时更新队长信息
+        if is_captain and found:
             self.state["captain"]["character_id"] = char_id
             self.state["captain"]["gender"] = gender
             self.state["captain"]["job"] = job
-            found = True
 
         # 如果未找到用户记录
         if not found:
-            return event.plain_result("你还没有加入APQ组队。")
+            return event.plain_result("\n你还没有加入APQ组队。")
 
         self._save_database()  # 保存更新后的数据
 
         # 返回成功消息（使用 br/gr）
-        return event.plain_result(f"已更新角色信息：角色 {char_id}，{gender} {job}")
+        return event.plain_result(f"\n已更新角色信息：角色 {char_id}，{gender} {job}")
 
     @filter.command("删除APQ角色")
     async def delete_apq_char(self, event: AstrMessageEvent, identifier: str = ""):
@@ -802,14 +804,14 @@ class APQPlugin(Star):
 
         # 检查管理员权限
         if not self._has_admin_rights(event):
-            return event.plain_result("仅管理员可删除角色。")
+            return event.plain_result("\n仅管理员可删除角色。")
 
         # 清理输入参数
         identifier = identifier.strip()
 
         # 验证参数
         if not identifier:
-            return event.plain_result("用法：/删除APQ角色 <角色ID或QQ号>\n示例：/删除APQ角色 dingzhen 或 /删除APQ角色 123456789")
+            return event.plain_result("\n用法：/删除APQ角色 <角色ID或QQ号>\n示例：/删除APQ角色 dingzhen 或 /删除APQ角色 123456789")
 
         # 先尝试通过角色ID查找玩家
         player = self._find_player_by_character_id(identifier)
@@ -823,7 +825,7 @@ class APQPlugin(Star):
 
         # 如果未找到玩家
         if player is None:
-            return event.plain_result(f"未找到 {identifier} 对应的APQ记录（请检查角色ID或QQ号）。")
+            return event.plain_result(f"\n未找到 {identifier} 对应的APQ记录（请检查角色ID或QQ号）。")
 
         # 获取玩家的QQ号、角色ID和昵称
         user_id = player.get("qq_number")
@@ -836,13 +838,13 @@ class APQPlugin(Star):
             # 删除队长等同于重置APQ
             self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
             self._save_database()
-            return event.plain_result(f"已将队长 {char_id}({player_name}) 删除，APQ已重置。")
+            return event.plain_result(f"\n已将队长 {char_id}({player_name}) 删除，APQ已重置。")
 
         # 从成员列表中移除玩家
         self._remove_user_from_all(user_id)
         self._save_database()  # 保存更新后的状态
 
-        return event.plain_result(f"已将角色 {char_id}({player_name}) 从APQ中移除。")
+        return event.plain_result(f"\n已将角色 {char_id}({player_name}) 从APQ中移除。")
 
     @filter.command("重置APQ")
     async def reset_apq(self, event: AstrMessageEvent):
@@ -859,13 +861,13 @@ class APQPlugin(Star):
 
         # 检查管理员权限
         if not self._has_admin_rights(event):
-            return event.plain_result("仅管理员可重置APQ。")
+            return event.plain_result("\n仅管理员可重置APQ。")
 
         # 完全重置状态数据（包括清空tracked_groups）
         self.state = {"status": "idle", "captain": {}, "members": [], "tracked_groups": []}
         self._save_database()  # 保存重置后的状态
 
-        return event.plain_result("已重置APQ组队数据。")
+        return event.plain_result("\n已重置APQ组队数据。")
 
     @filter.command("APQ命令使用帮助")
     async def help_apq(self, event: AstrMessageEvent):
@@ -926,7 +928,7 @@ class APQPlugin(Star):
   完全重置APQ数据"""
             help_text += admin_text
 
-        return event.plain_result(help_text)
+        return event.plain_result("\n" + help_text)
 
 class Main(APQPlugin):
     """兼容旧版加载器
